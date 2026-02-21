@@ -1,6 +1,6 @@
 # axiom
 My Data bot :
-Data Ingestion
+Data Load
 
 Upload CSV, TSV, JSON files via drag & drop or file picker
 Paste raw JSON directly into the text area
