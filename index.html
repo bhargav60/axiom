@@ -219,10 +219,14 @@ header::before {
 .workspace {
   flex:1;
   display: grid;
-  grid-template-columns: 270px 1fr 320px;
+  grid-template-columns: 270px minmax(0,1fr) 320px;
   overflow: hidden;
   gap: 1px;
   background: var(--border);
+}
+
+.workspace.ai-collapsed {
+  grid-template-columns: 270px minmax(0,1fr) 48px;
 }
 
 /* ═══ GLASS PANEL BASE ══════════════════════════════ */
@@ -1047,6 +1051,41 @@ header::before {
   letter-spacing: 0.1em;
 }
 
+.ai-toggle {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(0,0,0,0.3);
+  color: var(--c1);
+  font: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ai-toggle:hover { border-color: var(--c1); box-shadow: var(--glow1); }
+
+.workspace.ai-collapsed .ai-header {
+  height: 100%;
+  justify-content: center;
+  padding: 10px 7px;
+}
+
+.workspace.ai-collapsed .ai-header-left,
+.workspace.ai-collapsed .model-tag,
+.workspace.ai-collapsed .chat-messages,
+.workspace.ai-collapsed .quick-row,
+.workspace.ai-collapsed .chat-input-wrap {
+  display: none;
+}
+
+.workspace.ai-collapsed .ai-toggle {
+  width: 100%;
+  height: 100%;
+  writing-mode: vertical-rl;
+}
+
 /* Chat messages */
 .chat-messages {
   flex:1;
@@ -1463,7 +1502,7 @@ header::before {
     </div>
 
     <!-- RIGHT PANEL — AI -->
-    <div class="right-panel">
+    <div class="right-panel" id="aiPanel">
       <div class="ai-header">
         <div class="ai-header-left">
           <div class="ai-avatar">AX</div>
@@ -1473,6 +1512,7 @@ header::before {
           </div>
         </div>
         <div class="model-tag">CLAUDE SONNET</div>
+        <button class="ai-toggle" id="aiToggle" type="button" aria-label="Minimize AI analyst" aria-expanded="true" aria-controls="aiPanel" title="Minimize AI analyst" onclick="toggleAI()">−</button>
       </div>
 
       <div class="chat-messages" id="chatMessages">
@@ -1521,6 +1561,17 @@ let dataName='', cleanHist=[];
 function setSrc(s) {
   document.querySelectorAll('.src-tab').forEach((t,i)=>t.classList.toggle('active',['csv','sql','api'][i]===s));
   ['csv','sql','api'].forEach(id=>document.getElementById(`src-${id}`).style.display=id===s?'block':'none');
+}
+
+function toggleAI() {
+  const workspace=document.querySelector('.workspace');
+  const toggle=document.getElementById('aiToggle');
+  const collapsed=workspace.classList.toggle('ai-collapsed');
+  const label=collapsed?'Expand AI analyst':'Minimize AI analyst';
+  toggle.setAttribute('aria-expanded',String(!collapsed));
+  toggle.setAttribute('aria-label',label);
+  toggle.title=label;
+  toggle.textContent=collapsed?'AI ›':'−';
 }
 
 // File upload

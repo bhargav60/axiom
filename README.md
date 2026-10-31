@@ -1,50 +1,28 @@
-# axiom
-My Data bot :
-Data Load
+# AXIOM
 
-Upload CSV, TSV, JSON files via drag & drop or file picker
-Paste raw JSON directly into the text area
-Fetch from any REST API or JSON endpoint
-Run SQL queries against loaded data using the in-browser sql.js engine
-Load built-in sample sales and finance datasets to start instantly
+AXIOM is a browser-based data exploration app contained in `index.html`. The alternate `axiom-v2-crazy.html` currently has the same contents.
 
-Data Viewing (Table Tab)
+## What it does
 
-Browse all rows with sortable columns (click any header)
-Search across all columns or scope search to a specific column
-See numeric values right-aligned and color-coded in cyan
-Null values displayed clearly as —
-Export filtered results to CSV at any time
-Copy up to 100 rows as formatted JSON
+- Loads CSV, TSV, or JSON files; pasted JSON; REST endpoints; and built-in sample data.
+- Shows a searchable, sortable table, charts, summary statistics, data-quality tools, filters, grouping, and cleaning operations.
+- Runs SQL queries in the browser with `sql.js` (SQLite compiled to WebAssembly).
+- Includes an optional AI analyst panel. Use its **−** button to collapse it to a narrow rail and **AI ›** to reopen it.
 
-Visualizations (Charts Tab)
+## How data and SQL work
 
-Category distribution bar chart — auto-generated from first categorical column
-Value distribution histogram — auto-generated from first numeric column
-Doughnut/share chart — shows proportional breakdown of categories
-Scatter plot — auto-plots first two numeric columns against each other
-Time series line chart — detects date columns and plots trends over time
-KPI insight strip — shows total/average for top 4 numeric columns at a glance
-All charts use animated entry and hover tooltips
+Loaded records are held in JavaScript memory as the current dataset. The app builds an in-memory SQLite database named `data` from those records. It creates columns based on the first row and stores their values as `TEXT`; SQLite can still perform common numeric aggregates, but explicit numeric casts may be useful for unusual input. SQL runs locally in the browser; it does not connect to a separate database server or save data after the page is closed.
 
-Statistics (Statistics Tab)
+Running a SQL query sends its result back through the app's table, charts, and statistics as the current view. The SQL database remains based on the originally loaded dataset until another dataset is loaded.
 
-For every numeric column: count, mean, median, std deviation, min, Q1, Q3, max, IQR, outlier count, null count, sum
-For every categorical column: count, unique values, mode, mode frequency, null count, % completeness
-Correlation matrix — color-coded Pearson r values for all numeric column pairs, showing which metrics move together
+## Capacity and limitations
 
-Data Cleaning & Transform (Transform Tab)
+There is **no configured or verified maximum row count**. The app reads and processes data in the browser, and also holds a SQL database copy in WebAssembly memory. The practical limit depends on the device, browser, number of columns, and the length of cell values; large inputs may make the page slow or run out of memory. Parsing, type detection, statistics, and transforms can scan the full dataset.
 
-Data quality report — visual completion bars per column showing null percentages in red/yellow/green
-Row filtering — filter by equals, not equals, greater than, less than, contains, or not null
-Group by & aggregate — group any column and compute SUM, AVG, COUNT, MAX, or MIN on any numeric column
-Outlier detection — IQR-based detection with configurable multiplier (1.5×, 2×, 3×)
-Duplicate detection — finds exact duplicate rows across the whole dataset
-Cleaning operations — trim whitespace, lowercase, uppercase, fill nulls with mean/mode/zero, drop null rows, convert to number
-Undo history — every cleaning operation is reversible with one click
+The table renders at most 500 rows at once, and the scatter plot samples at most 500 rows. Those are display/visualization limits, not limits on rows accepted by upload. The AI analyst receives computed summaries plus up to five sample rows, not the complete dataset. Its current request uses a direct Anthropic API call without API-key authentication, so AI connectivity needs a secure server-side API proxy before it can work safely; do not add a secret key to the HTML.
 
-AI Natural Language Analyst
+To establish a real capacity target, test progressively larger representative files on the least powerful device you plan to support, while measuring load time and responsiveness. There is no benchmark in this repository that justifies a hard row limit.
 
-Ask any question in plain English — "Which product category drives the most margin?"
-Quick action buttons: executive summary, top performers, anomaly detection, forecasting, business recommendations, data quality assessment
-Click any column in the sch
+## Running locally
+
+There is no `package.json`, bundler, or compile/build step. Serve the repository as static files (for example, `python3 -m http.server 8000`) and open `http://localhost:8000`. The app loads PapaParse, Chart.js, sql.js, and fonts from CDNs, so those features require network access. No external build command is needed.
