@@ -217,9 +217,10 @@ header::before {
 
 /* ═══ MAIN WORKSPACE ═══════════════════════════════ */
 .workspace {
+  --ai-panel-width: 320px;
   flex:1;
   display: grid;
-  grid-template-columns: 270px minmax(0,1fr) 320px;
+  grid-template-columns: 270px minmax(0,1fr) var(--ai-panel-width);
   overflow: hidden;
   gap: 1px;
   background: var(--border);
@@ -625,18 +626,22 @@ header::before {
 .t-search {
   flex:1;
   background: rgba(0,0,0,0.4);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(0,200,255,0.4);
   border-radius: 5px;
   padding: 7px 12px;
   font-family: 'Share Tech Mono', monospace;
-  font-size: 0.7rem;
-  color: var(--c1);
-  outline: none;
-  transition: all 0.3s;
+  font-size: 0.72rem;
+  color: #dff7ff;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
 .t-search:focus { border-color: var(--c1); box-shadow: 0 0 12px rgba(0,200,255,0.15); }
+.t-search:focus-visible { outline-color: rgba(0,200,255,0.55); }
 .t-search::placeholder { color: var(--muted); }
+.table-bar select.t-search { color-scheme: dark; cursor: pointer; }
+.table-bar select.t-search option { background: #071321; color: #e6f4ff; }
 
 .t-mini-btn {
   background: rgba(0,200,255,0.06);
@@ -976,12 +981,54 @@ header::before {
 
 /* ═══ RIGHT PANEL — AI CHAT ═════════════════════════ */
 .right-panel {
+  position: relative;
+  min-width: 0;
   background: rgba(3,6,14,0.9);
   backdrop-filter: blur(30px);
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border);
   overflow: hidden;
+}
+
+.ai-resize-handle {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.ai-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.ai-resize-handle:hover::after,
+.ai-resize-handle:focus-visible::after,
+.workspace.ai-resizing .ai-resize-handle::after {
+  background: var(--c1);
+  box-shadow: var(--glow1);
+}
+
+.workspace.ai-collapsed .ai-resize-handle {
+  display: none;
+}
+
+.workspace.ai-resizing,
+.workspace.ai-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
 }
 
 .ai-header {
@@ -1064,6 +1111,21 @@ header::before {
   flex-shrink: 0;
 }
 
+.ai-expand {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(0,0,0,0.3);
+  color: var(--c1);
+  font: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ai-expand:hover { border-color: var(--c1); box-shadow: var(--glow1); }
+
 .ai-toggle:hover { border-color: var(--c1); box-shadow: var(--glow1); }
 
 .workspace.ai-collapsed .ai-header {
@@ -1074,6 +1136,7 @@ header::before {
 
 .workspace.ai-collapsed .ai-header-left,
 .workspace.ai-collapsed .model-tag,
+.workspace.ai-collapsed .ai-expand,
 .workspace.ai-collapsed .chat-messages,
 .workspace.ai-collapsed .quick-row,
 .workspace.ai-collapsed .chat-input-wrap {
@@ -1088,12 +1151,14 @@ header::before {
 
 /* Chat messages */
 .chat-messages {
-  flex:1;
+  flex: 1 1 0;
+  min-height: 0;
   overflow-y: auto;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overscroll-behavior: contain;
 }
 
 .chat-messages::-webkit-scrollbar { width:3px; }
@@ -1503,6 +1568,7 @@ header::before {
 
     <!-- RIGHT PANEL — AI -->
     <div class="right-panel" id="aiPanel">
+      <div class="ai-resize-handle" id="aiResizeHandle" role="separator" aria-orientation="vertical" aria-label="Resize AI analyst panel" aria-valuemin="300" aria-valuemax="760" aria-valuenow="320" tabindex="0" title="Drag to resize AI analyst; use arrow keys to adjust"></div>
       <div class="ai-header">
         <div class="ai-header-left">
           <div class="ai-avatar">AX</div>
@@ -1511,7 +1577,8 @@ header::before {
             <div class="ai-sub">NEURAL INTELLIGENCE ENGINE</div>
           </div>
         </div>
-        <div class="model-tag">CLAUDE SONNET</div>
+        <div class="model-tag">GROQ · QWEN</div>
+        <button class="ai-expand" id="aiExpand" type="button" aria-label="Expand AI analyst" aria-pressed="false" title="Expand AI analyst">⤢</button>
         <button class="ai-toggle" id="aiToggle" type="button" aria-label="Minimize AI analyst" aria-expanded="true" aria-controls="aiPanel" title="Minimize AI analyst" onclick="toggleAI()">−</button>
       </div>
 
@@ -1523,7 +1590,7 @@ header::before {
             System online. Connect a data source to begin deep analysis. I can handle natural language queries, statistical modeling, anomaly detection, and strategic business insights.
             <div class="chips">
               <div class="chip" onclick="loadSample('sales')">⬡ Sales dataset</div>
-              <div class="chip" onclick="loadSample('finance')">◈ Finance dataset</div>
+              <div class="chip" onclick="loadSample('workforce')">◈ Workforce dataset</div>
             </div>
           </div>
         </div>
@@ -1554,8 +1621,14 @@ header::before {
 <script>
 // ════════════════ STATE ════════════════
 let raw=[], filtered=[], cols=[], types={};
-let sqlDB=null, charts={}, sortCol=null, sortDir=1;
+let sqlDB=null, sqlInitVersion=0, charts={}, sortCol=null, sortDir=1;
 let dataName='', cleanHist=[];
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g,char=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[char]);
+}
 
 // ════════════════ SOURCES ════════════════
 function setSrc(s) {
@@ -1571,8 +1644,72 @@ function toggleAI() {
   toggle.setAttribute('aria-expanded',String(!collapsed));
   toggle.setAttribute('aria-label',label);
   toggle.title=label;
-  toggle.textContent=collapsed?'AI ›':'−';
+  toggle.textContent=collapsed?'AI ANALYST ›':'−';
 }
+
+function setAIPanelWidth(width) {
+  const workspace=document.querySelector('.workspace');
+  const handle=document.getElementById('aiResizeHandle');
+  const maxWidth=Math.max(300,Math.min(760,workspace.clientWidth-270-240));
+  const nextWidth=Math.round(Math.max(300,Math.min(maxWidth,width)));
+  workspace.style.setProperty('--ai-panel-width',`${nextWidth}px`);
+  handle.setAttribute('aria-valuemax',String(maxWidth));
+  handle.setAttribute('aria-valuenow',String(nextWidth));
+  const expand=document.getElementById('aiExpand');
+  const isExpanded=nextWidth>=maxWidth;
+  expand.setAttribute('aria-pressed',String(isExpanded));
+  expand.setAttribute('aria-label',isExpanded?'Restore AI analyst width':'Expand AI analyst');
+  expand.title=isExpanded?'Restore AI analyst width':'Expand AI analyst';
+  expand.textContent=isExpanded?'⤡':'⤢';
+}
+
+const aiResizeHandle=document.getElementById('aiResizeHandle');
+aiResizeHandle.addEventListener('pointerdown',event=>{
+  if(event.button!==0)return;
+  const workspace=document.querySelector('.workspace');
+  const startX=event.clientX;
+  const startWidth=document.getElementById('aiPanel').getBoundingClientRect().width;
+  aiResizeHandle.setPointerCapture(event.pointerId);
+  workspace.classList.add('ai-resizing');
+  const onMove=moveEvent=>setAIPanelWidth(startWidth+startX-moveEvent.clientX);
+  const onEnd=endEvent=>{
+    workspace.classList.remove('ai-resizing');
+    if(aiResizeHandle.hasPointerCapture(endEvent.pointerId))aiResizeHandle.releasePointerCapture(endEvent.pointerId);
+    aiResizeHandle.removeEventListener('pointermove',onMove);
+    aiResizeHandle.removeEventListener('pointerup',onEnd);
+    aiResizeHandle.removeEventListener('pointercancel',onEnd);
+  };
+  aiResizeHandle.addEventListener('pointermove',onMove);
+  aiResizeHandle.addEventListener('pointerup',onEnd);
+  aiResizeHandle.addEventListener('pointercancel',onEnd);
+});
+aiResizeHandle.addEventListener('keydown',event=>{
+  const current=document.getElementById('aiPanel').getBoundingClientRect().width;
+  if(event.key==='ArrowLeft'){
+    event.preventDefault();
+    setAIPanelWidth(current+20);
+  }else if(event.key==='ArrowRight'){
+    event.preventDefault();
+    setAIPanelWidth(current-20);
+  }else if(event.key==='Home'){
+    event.preventDefault();
+    setAIPanelWidth(300);
+  }else if(event.key==='End'){
+    event.preventDefault();
+    setAIPanelWidth(760);
+  }
+});
+document.getElementById('aiExpand').addEventListener('click',()=>{
+  const panelWidth=document.getElementById('aiPanel').getBoundingClientRect().width;
+  const workspace=document.querySelector('.workspace');
+  const maxWidth=Math.max(300,Math.min(760,workspace.clientWidth-270-240));
+  setAIPanelWidth(panelWidth>=maxWidth?320:maxWidth);
+});
+setAIPanelWidth(document.getElementById('aiPanel').getBoundingClientRect().width);
+window.addEventListener('resize',()=>{
+  const panelWidth=document.getElementById('aiPanel').getBoundingClientRect().width;
+  if(!document.querySelector('.workspace').classList.contains('ai-collapsed'))setAIPanelWidth(panelWidth);
+});
 
 // File upload
 const uz=document.getElementById('uploadZone');
@@ -1580,29 +1717,40 @@ const fi=document.getElementById('fileInput');
 uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag-over');});
 uz.addEventListener('dragleave',()=>uz.classList.remove('drag-over'));
 uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('drag-over');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
-fi.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+fi.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);e.target.value='';});
 
 function handleFile(f) {
-  dataName=f.name;
   const r=new FileReader();
   r.onload=e=>{
     try {
-      if(f.name.endsWith('.json')){
+      const filename=f.name.toLowerCase();
+      if(filename.endsWith('.json')){
         const p=JSON.parse(e.target.result);
-        ingest(Array.isArray(p)?p:[p]);
+        const records=Array.isArray(p)?p:[p];
+        if(!records.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))throw new Error('JSON must contain an object or an array of objects.');
+        dataName=f.name;
+        ingest(records);
+      } else if(filename.endsWith('.csv')||filename.endsWith('.tsv')){
+        const parsed=Papa.parse(e.target.result,{header:true,skipEmptyLines:true,dynamicTyping:true});
+        if(parsed.errors.length)throw new Error(parsed.errors[0].message);
+        dataName=f.name;
+        ingest(parsed.data);
       } else {
-        ingest(Papa.parse(e.target.result,{header:true,skipEmptyLines:true,dynamicTyping:true}).data);
+        toast('Unsupported file type. Choose CSV, TSV, or JSON.');
       }
     } catch(err){toast('Parse error: '+err.message);}
   };
+  r.onerror=()=>toast('Unable to read the selected file.');
   r.readAsText(f);
 }
 
 function parseJSON() {
   try {
     const p=JSON.parse(document.getElementById('jsonPaste').value.trim());
-    ingest(Array.isArray(p)?p:[p]);
+    const records=Array.isArray(p)?p:[p];
+    if(!records.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))throw new Error('JSON must contain an object or an array of objects.');
     dataName='pasted_data.json';
+    ingest(records);
   } catch(e){toast('Invalid JSON: '+e.message);}
 }
 
@@ -1612,29 +1760,47 @@ async function fetchAPI() {
   toast('Fetching…');
   try {
     const r=await fetch(url);
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
     const j=await r.json();
     const a=Array.isArray(j)?j:j.data||j.results||j.records||[j];
-    ingest(a); dataName=url.split('/').pop()||'api_data';
+    if(!Array.isArray(a)||!a.every(row=>row&&typeof row==='object'&&!Array.isArray(row)))throw new Error('Endpoint must return an array of data records.');
+    dataName=url.split('/').pop()||'api_data';
+    ingest(a);
     toast('API data loaded!');
   } catch(e){toast('Fetch error: '+e.message);}
 }
 
 // SQL
 async function initSQL(data) {
+  const version=++sqlInitVersion;
+  sqlDB?.close();
+  sqlDB=null;
   try {
     const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.2/${f}`});
-    sqlDB=new SQL.Database();
-    if(!data.length)return;
-    const c=Object.keys(data[0]);
-    sqlDB.run(`CREATE TABLE IF NOT EXISTS data (${c.map(x=>`"${x}" TEXT`).join(',')})`);
-    const stmt=sqlDB.prepare(`INSERT INTO data VALUES (${c.map(()=>'?').join(',')})`);
-    data.forEach(row=>stmt.run(c.map(x=>row[x]===null||row[x]===undefined?null:String(row[x]))));
-    stmt.free();
-  } catch(e){console.warn('SQL init failed',e);}
+    const db=new SQL.Database();
+    const c=data.length?Object.keys(data[0]):[];
+    if(c.length){
+      const identifiers=c.map(x=>`"${String(x).replace(/"/g,'""')}"`);
+      db.run(`CREATE TABLE data (${identifiers.map(x=>`${x} TEXT`).join(',')})`);
+      const stmt=db.prepare(`INSERT INTO data VALUES (${c.map(()=>'?').join(',')})`);
+      try {
+        data.forEach(row=>stmt.run(c.map(x=>row[x]===null||row[x]===undefined?null:String(row[x]))));
+      } finally {
+        stmt.free();
+      }
+    }
+    if(version!==sqlInitVersion){db.close();return;}
+    sqlDB=db;
+  } catch(e){
+    if(version===sqlInitVersion){
+      console.error('SQL init failed',e);
+      toast('SQL initialization failed: '+e.message);
+    }
+  }
 }
 
 function runSQL() {
-  if(!sqlDB){toast('Load data first');return;}
+  if(!sqlDB){toast('SQL is not ready. Load data and try again.');return;}
   const q=document.getElementById('sqlInput').value.trim();
   if(!q)return;
   try {
@@ -1697,13 +1863,22 @@ function updateLeft() {
   document.getElementById('kv-health').textContent=health+'%';
 
   const fc=document.getElementById('tFilterCol');
-  fc.innerHTML='<option value="">ALL COLUMNS</option>'+cols.map(c=>`<option value="${c}">${c}</option>`).join('');
+  fc.replaceChildren(new Option('ALL COLUMNS',''));
+  cols.forEach(c=>fc.add(new Option(c,c)));
 
-  document.getElementById('schemaTree').innerHTML=cols.map(c=>`
-    <div class="schema-col" onclick="askCol('${c}')">
-      <span>${c}</span>
-      <span class="type-pill tp-${types[c]}">${types[c]}</span>
-    </div>`).join('');
+  const schema=document.getElementById('schemaTree');
+  schema.replaceChildren(...cols.map(c=>{
+    const item=document.createElement('div');
+    item.className='schema-col';
+    item.addEventListener('click',()=>askCol(c));
+    const name=document.createElement('span');
+    name.textContent=c;
+    const type=document.createElement('span');
+    type.className=`type-pill tp-${types[c]}`;
+    type.textContent=types[c];
+    item.append(name,type);
+    return item;
+  }));
 }
 
 // ════════════════ TABLE ════════════════
@@ -1712,17 +1887,41 @@ function renderTable(d=filtered) {
   const rows=d.slice(0,500);
   if(!rows.length){tw.innerHTML='<div class="ph"><div class="ph-icon">◈</div><p>NO MATCHING ROWS</p></div>';return;}
 
-  const body=rows.map(row=>`<tr>${cols.map(c=>{
-    const v=row[c];
-    if(v===null||v===undefined||v==='')return`<td class="null">—</td>`;
-    if(types[c]==='num')return`<td class="nc">${typeof v==='number'?v.toLocaleString(undefined,{maximumFractionDigits:4}):v}</td>`;
-    return`<td title="${String(v).replace(/"/g,"'")}">${String(v).substring(0,50)}</td>`;
-  }).join('')}</tr>`).join('');
-
-  tw.innerHTML=`<table class="data-table">
-    <thead><tr>${cols.map(c=>`<th onclick="sortBy('${c}')">${c}${sortCol===c?sortDir>0?' ↑':' ↓':''}</th>`).join('')}</tr></thead>
-    <tbody>${body}</tbody>
-  </table>`;
+  const table=document.createElement('table');
+  table.className='data-table';
+  const head=document.createElement('thead');
+  const headerRow=document.createElement('tr');
+  cols.forEach(c=>{
+    const th=document.createElement('th');
+    th.textContent=`${c}${sortCol===c?sortDir>0?' ↑':' ↓':''}`;
+    th.addEventListener('click',()=>sortBy(c));
+    headerRow.appendChild(th);
+  });
+  head.appendChild(headerRow);
+  const body=document.createElement('tbody');
+  rows.forEach(row=>{
+    const tr=document.createElement('tr');
+    cols.forEach(c=>{
+      const td=document.createElement('td');
+      const value=row[c];
+      if(value===null||value===undefined||value===''){
+        td.className='null';
+        td.textContent='—';
+      } else {
+        if(types[c]==='num'){
+          td.className='nc';
+          td.textContent=typeof value==='number'?value.toLocaleString(undefined,{maximumFractionDigits:4}):String(value);
+        } else {
+          td.title=String(value);
+          td.textContent=String(value).substring(0,50);
+        }
+      }
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+  table.append(head,body);
+  tw.replaceChildren(table);
 
   document.getElementById('tInfo').textContent=`${rows.length.toLocaleString()} / ${d.length.toLocaleString()} ROWS`;
   document.getElementById('tExtra').textContent=dataName?`[ ${dataName} ]`:'';
@@ -1815,7 +2014,7 @@ function buildInsight(nc) {
     const main=sum>10000?sum:mean;
     const card=document.createElement('div');
     card.className=`ins-card ${types_[i]}`;
-    card.innerHTML=`<div class="ins-lbl">${col}</div><div class="ins-val">${numFmt(main)}</div><div class="ins-sub">${sum>10000?'TOTAL':'AVG'} · ${vals.length} VALUES</div>`;
+    card.innerHTML=`<div class="ins-lbl">${escapeHTML(col)}</div><div class="ins-val">${numFmt(main)}</div><div class="ins-sub">${sum>10000?'TOTAL':'AVG'} · ${vals.length} VALUES</div>`;
     strip.appendChild(card);
   });
 }
@@ -1823,7 +2022,7 @@ function buildInsight(nc) {
 function addChart(container,title,type,labels,datasets,size='') {
   const card=document.createElement('div');
   card.className=`chart-card${size==='wide'?' wide':''}`;
-  card.innerHTML=`<div class="cc-title">${title}</div><div class="chart-container"><canvas></canvas></div>`;
+  card.innerHTML=`<div class="cc-title">${escapeHTML(title)}</div><div class="chart-container"><canvas></canvas></div>`;
   container.appendChild(card);
   const id=Math.random();
   charts[id]=new Chart(card.querySelector('canvas').getContext('2d'),{
@@ -1855,14 +2054,15 @@ function renderStats() {
       if(!vals.length)return;
       const sum=vals.reduce((a,b)=>a+b,0);
       const mean=sum/vals.length;
-      const med=vals[Math.floor(vals.length/2)];
+      const mid=Math.floor(vals.length/2);
+      const med=vals.length%2?vals[mid]:(vals[mid-1]+vals[mid])/2;
       const std=Math.sqrt(vals.reduce((a,b)=>a+Math.pow(b-mean,2),0)/vals.length);
       const q1=vals[Math.floor(vals.length*.25)];
       const q3=vals[Math.floor(vals.length*.75)];
       const iqr=q3-q1;
       const outliers=vals.filter(v=>v<q1-1.5*iqr||v>q3+1.5*iqr).length;
       const nullN=raw.filter(r=>r[col]===null||r[col]===undefined||r[col]==='').length;
-      h+=`<div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--c1);margin:10px 0 6px;letter-spacing:0.1em;text-transform:uppercase;text-shadow:0 0 8px rgba(0,200,255,0.3)">${col}</div>`;
+      h+=`<div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--c1);margin:10px 0 6px;letter-spacing:0.1em;text-transform:uppercase;text-shadow:0 0 8px rgba(0,200,255,0.3)">${escapeHTML(col)}</div>`;
       h+=`<div class="stat-grid">
         ${stile('COUNT',vals.length.toLocaleString())}
         ${stile('MEAN',numFmt(mean))}
@@ -1889,7 +2089,7 @@ function renderStats() {
       vals.forEach(v=>counts[String(v)]=(counts[String(v)]||0)+1);
       const mode=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
       const nullN=raw.length-vals.length;
-      h+=`<div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--c4);margin:10px 0 6px;letter-spacing:0.1em;text-transform:uppercase;text-shadow:0 0 8px rgba(0,255,157,0.3)">${col}</div>`;
+      h+=`<div style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:var(--c4);margin:10px 0 6px;letter-spacing:0.1em;text-transform:uppercase;text-shadow:0 0 8px rgba(0,255,157,0.3)">${escapeHTML(col)}</div>`;
       h+=`<div class="stat-grid">
         ${stile('COUNT',vals.length.toLocaleString())}
         ${stile('UNIQUE',unique.toLocaleString())}
@@ -1904,9 +2104,9 @@ function renderStats() {
   // Correlation matrix
   const numCols=cols.filter(c=>types[c]==='num').slice(0,6);
   if(numCols.length>=2){
-    h+='<div class="stat-section-title">CORRELATION MATRIX</div><div style="overflow-x:auto"><table class="corr-table"><thead><tr><th>—</th>'+numCols.map(c=>`<th>${c.substring(0,10)}</th>`).join('')+'</tr></thead><tbody>';
+    h+='<div class="stat-section-title">CORRELATION MATRIX</div><div style="overflow-x:auto"><table class="corr-table"><thead><tr><th>—</th>'+numCols.map(c=>`<th>${escapeHTML(c.substring(0,10))}</th>`).join('')+'</tr></thead><tbody>';
     numCols.forEach(c1=>{
-      h+=`<tr><th>${c1.substring(0,10)}</th>`;
+      h+=`<tr><th>${escapeHTML(c1.substring(0,10))}</th>`;
       numCols.forEach(c2=>{
         const r=pearson(raw.map(r=>parseFloat(r[c1])),raw.map(r=>parseFloat(r[c2])));
         const abs=Math.abs(r);
@@ -1923,7 +2123,7 @@ function renderStats() {
 }
 
 function stile(k,v,c=''){
-  return`<div class="stat-tile"><div class="sk">${k}</div><div class="sv" style="color:${c||'var(--text)'}">${v}</div></div>`;
+  return`<div class="stat-tile"><div class="sk">${escapeHTML(k)}</div><div class="sv" style="color:${escapeHTML(c||'var(--text)')}">${escapeHTML(v)}</div></div>`;
 }
 
 // ════════════════ CLEAN / TRANSFORM ════════════════
@@ -1934,7 +2134,7 @@ function renderClean() {
     const n=raw.filter(r=>r[col]===null||r[col]===undefined||r[col]==='').length;
     const pct=(n/raw.length)*100;
     const cls=pct>20?'bad':pct>5?'warn':'good';
-    return`<div class="quality-row"><div class="q-label"><span>${col}</span><span>${n} nulls (${pct.toFixed(1)}%)</span></div><div class="q-bar"><div class="q-fill ${cls}" style="width:${100-pct}%"></div></div></div>`;
+    return`<div class="quality-row"><div class="q-label"><span>${escapeHTML(col)}</span><span>${n} nulls (${pct.toFixed(1)}%)</span></div><div class="q-bar"><div class="q-fill ${cls}" style="width:${100-pct}%"></div></div></div>`;
   }).join('');
 
   panel.innerHTML=`
@@ -1951,7 +2151,7 @@ function renderClean() {
     <div class="clean-card">
       <h3>⚡ FILTER ROWS</h3>
       <div class="t-row">
-        <select class="neo-select" id="fCol">${cols.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+        <select class="neo-select" id="fCol">${cols.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}</select>
         <select class="neo-select" id="fOp" style="flex:0 0 110px">
           <option value="eq">= equals</option>
           <option value="neq">≠ not equals</option>
@@ -1972,8 +2172,8 @@ function renderClean() {
     <div class="clean-card">
       <h3>∑ GROUP BY & AGGREGATE</h3>
       <div class="t-row">
-        <select class="neo-select" id="gbCol">${cols.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
-        <select class="neo-select" id="gbAgg">${nc.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+        <select class="neo-select" id="gbCol">${cols.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}</select>
+        <select class="neo-select" id="gbAgg">${nc.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}</select>
       </div>
       <div class="t-row">
         <select class="neo-select" id="gbFn"><option>SUM</option><option>AVG</option><option>COUNT</option><option>MAX</option><option>MIN</option></select>
@@ -1985,7 +2185,7 @@ function renderClean() {
     <div class="clean-card">
       <h3>⚠ OUTLIER DETECTION</h3>
       <div class="t-row">
-        <select class="neo-select" id="outlCol">${nc.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+        <select class="neo-select" id="outlCol">${nc.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}</select>
         <select class="neo-select" id="outlMult" style="flex:0 0 90px"><option value="1.5">1.5× IQR</option><option value="2">2× IQR</option><option value="3">3× IQR</option></select>
       </div>
       <button class="neo-btn neo-btn-primary" onclick="detectOutliers()">DETECT OUTLIERS</button>
@@ -1995,7 +2195,7 @@ function renderClean() {
     <div class="clean-card">
       <h3>🧹 DATA CLEANING OPS</h3>
       <div class="t-row">
-        <select class="neo-select" id="cleanCol">${cols.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+        <select class="neo-select" id="cleanCol">${cols.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}</select>
         <select class="neo-select" id="cleanOp">
           <option value="trim">Trim whitespace</option>
           <option value="lower">Lowercase</option>
@@ -2022,7 +2222,7 @@ function fullQuality() {
   let nulls=0,total=raw.length*cols.length,report='DATA QUALITY SCAN\n'+'─'.repeat(30)+'\n\n';
   cols.forEach(col=>{const n=raw.filter(r=>r[col]===null||r[col]===undefined||r[col]==='').length;if(n>0){report+=`${col}: ${n} nulls (${((n/raw.length)*100).toFixed(1)}%)\n`;nulls+=n;}});
   if(!nulls)report+='NO NULL VALUES DETECTED ✓\n';
-  report+=`\nDUPLICATES: ${countDupes()}\nOVERALL HEALTH: ${Math.round((1-nulls/total)*100)}%`;
+  report+=`\nDUPLICATES: ${countDupes()}\nOVERALL HEALTH: ${total?Math.round((1-nulls/total)*100):100}%`;
   getOut('qualOut').textContent=report;
 }
 
@@ -2083,6 +2283,21 @@ function detectOutliers() {
 function applyClean() {
   const col=document.getElementById('cleanCol').value;
   const op=document.getElementById('cleanOp').value;
+  let fillValue;
+  if(op==='fill_mean'){
+    if(types[col]!=='num'){toast('Fill mean is only available for numeric columns.');return;}
+    const vals=numVals(col);
+    if(!vals.length){toast('Cannot calculate a mean without numeric values.');return;}
+    fillValue=vals.reduce((a,b)=>a+b,0)/vals.length;
+  } else if(op==='fill_mode'){
+    const counts=new Map();
+    raw.forEach(row=>{
+      const value=row[col];
+      if(value!==null&&value!==undefined&&value!=='')counts.set(value,(counts.get(value)||0)+1);
+    });
+    if(!counts.size){toast('Cannot calculate a mode without non-empty values.');return;}
+    fillValue=[...counts].sort((a,b)=>b[1]-a[1])[0][0];
+  }
   cleanHist.push(JSON.parse(JSON.stringify(raw)));
   let changed=0;
   if(op==='drop_null'){const b=raw.length;raw=raw.filter(r=>r[col]!==null&&r[col]!==undefined&&r[col]!=='');filtered=[...raw];changed=b-raw.length;getOut('cleanOut').textContent=`✓ DROPPED ${changed} NULL ROWS`;}
@@ -2096,9 +2311,7 @@ function applyClean() {
       else if(op==='fill_zero'&&(v===null||v===undefined||v==='')){ r[col]=0;changed++;}
     });
     if(op==='fill_mean'||op==='fill_mode'){
-      const vals=numVals(col);
-      const fill=op==='fill_mean'?vals.reduce((a,b)=>a+b,0)/vals.length:(()=>{const c={};vals.forEach(v=>c[v]=(c[v]||0)+1);return parseFloat(Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0]||0);})();
-      raw.forEach(r=>{if(r[col]===null||r[col]===undefined||r[col]===''){r[col]=fill;changed++;}});
+      raw.forEach(r=>{if(r[col]===null||r[col]===undefined||r[col]===''){r[col]=fillValue;changed++;}});
     }
     filtered=[...raw];
     getOut('cleanOut').textContent=`✓ APPLIED "${op.toUpperCase()}" → ${changed} CELLS MODIFIED`;
@@ -2114,10 +2327,6 @@ function undoClean(){
 }
 
 // ════════════════ AI CHAT ════════════════
-const SYS=`You are AXIOM, an elite business intelligence AI analyst. You analyze datasets and deliver precise, actionable insights.
-
-Style: Direct. Data-driven. Executive-level. Use specific numbers. Bold the most important metrics. Structure clearly.`;
-
 async function send() {
   const inp=document.getElementById('chatInput');
   const txt=inp.value.trim();
@@ -2127,13 +2336,15 @@ async function send() {
   const dot=addThinking();
   document.getElementById('sendBtn').disabled=true;
   try {
-    const res=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYS,messages:[{role:'user',content:`${buildCtx()}\n\n---\nANALYST QUERY: ${txt}`}]})
+    const res=await fetch('/api/analyze',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({query:txt,context:buildCtx()})
     });
     const data=await res.json();
+    if(!res.ok)throw new Error(data.error||`Server error (${res.status})`);
     dot.remove();
-    addAI(data.content?.[0]?.text||'No response.');
+    addAI(data.answer||'The AI service returned an empty answer.');
   } catch(e){dot.remove();addAI(`CONNECTION ERROR: ${e.message}`);}
   finally{document.getElementById('sendBtn').disabled=false;}
 }
@@ -2158,7 +2369,9 @@ function buildCtx() {
       ctx+=`  ${col}: ${Object.entries(cv).map(([k,v])=>`${k}(${v})`).join(', ')}\n`;
     });
   }
-  ctx+=`\nSAMPLE DATA:\n${JSON.stringify(raw.slice(0,5),null,1)}`;
+  const fullData=JSON.stringify(raw);
+  if(fullData.length<=30000)ctx+=`\nFULL DATASET (${raw.length} rows):\n${fullData}`;
+  else ctx+=`\nSAMPLE DATA (first 5 of ${raw.length} rows):\n${JSON.stringify(raw.slice(0,5),null,1)}`;
   return ctx;
 }
 
@@ -2186,20 +2399,36 @@ function addThinking() {
 function mkMsg(role,txt,chips=[]) {
   const div=document.createElement('div');
   div.className=`msg ${role}`;
-  const av=role==='ai'?'AX':'U';
-  const chipHTML=chips.length?`<div class="chips">${chips.map(c=>`<div class="chip" onclick="setInput('${c}')">${c}</div>`).join('')}</div>`:'';
-  div.innerHTML=`
-    <div class="msg-av">${av}</div>
-    <div class="msg-body">
-      <div class="msg-from">${role==='ai'?'AXIOM INTELLIGENCE':'YOU'}</div>
-      ${fmtAI(txt)}
-      ${chipHTML}
-    </div>`;
+  const avatar=document.createElement('div');
+  avatar.className='msg-av';
+  avatar.textContent=role==='ai'?'AX':'U';
+  const body=document.createElement('div');
+  body.className='msg-body';
+  const from=document.createElement('div');
+  from.className='msg-from';
+  from.textContent=role==='ai'?'AXIOM INTELLIGENCE':'YOU';
+  const content=document.createElement('div');
+  content.innerHTML=fmtAI(txt);
+  body.append(from,content);
+  if(chips.length){
+    const chipWrap=document.createElement('div');
+    chipWrap.className='chips';
+    chips.forEach(chip=>{
+      const button=document.createElement('button');
+      button.className='chip';
+      button.type='button';
+      button.textContent=chip;
+      button.addEventListener('click',()=>setInput(chip));
+      chipWrap.appendChild(button);
+    });
+    body.appendChild(chipWrap);
+  }
+  div.append(avatar,body);
   return div;
 }
 
 function fmtAI(t){
-  return t
+  return escapeHTML(t)
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
     .replace(/\*(.+?)\*/g,'<em>$1</em>')
     .replace(/`(.+?)`/g,`<span style="font-family:'Share Tech Mono',monospace;font-size:0.8em;background:rgba(0,200,255,0.08);padding:1px 5px;border-radius:3px;color:var(--c1)">$1</span>`)
@@ -2207,7 +2436,10 @@ function fmtAI(t){
     .replace(/\n/g,'<br>');
 }
 
-function scroll(){const m=document.getElementById('chatMessages');m.scrollTop=m.scrollHeight;}
+function scroll(){
+  const m=document.getElementById('chatMessages');
+  requestAnimationFrame(()=>{m.scrollTop=m.scrollHeight;});
+}
 
 function setInput(t){document.getElementById('chatInput').value=t;document.getElementById('chatInput').focus();}
 function askCol(c){setInput(`Give me a detailed business analysis of the "${c}" column.`); send();}
@@ -2256,6 +2488,7 @@ function loadSample(type) {
     }));
     dataName='sample_workforce.csv';
   }
+  if(type!=='sales'&&type!=='workforce'){toast('Unknown sample dataset');return;}
   ingest(raw,true); initSQL(raw); toast(`✓ ${type.toUpperCase()} DATASET LOADED`);
 }
 
